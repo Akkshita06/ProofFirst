@@ -11,6 +11,11 @@ so it runs with zero extra tooling during a hackathon weekend.
 from __future__ import annotations
 
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(PROJECT_ROOT / ".env")
 
 # Neatlogs (optional sponsor-tool tracing integration - see NEATLOGS_API_KEY
 # in the README) instruments google.generativeai at *import time*, so this
@@ -28,7 +33,6 @@ if os.environ.get("NEATLOGS_API_KEY"):
     except Exception as e:  # pragma: no cover - graceful degrade
         print(f"[server] Neatlogs init failed, continuing without tracing: {e}")
 
-from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
@@ -313,7 +317,6 @@ def api_start_call(lead_id: str, body: StartCallRequest, request: Request):
     and outbound network access to api.twilio.com - see the setup note in
     the accompanying writeup for what to verify before the demo."""
     lead = get_lead(lead_id)  # 404s via KeyError -> unhandled here on purpose: matches other endpoints' style
-    import os
     try:
         from twilio.rest import Client
     except ImportError:
