@@ -1,6 +1,7 @@
 <div align="center">
 
 # PROOFFIRST
+### *Built for Syndicate by Maximor*
 
 **An evidence-verified AI SDR pipeline where research is guilty until proven innocent.**
 
@@ -12,33 +13,33 @@
 
 > **Core thesis:** Research is not trusted until another agent actively tries to disprove it.
 
-Syndicate is built around sequential specialist agents, a custom conditional router, and a guarded real-world action, aimed at a fundamentally different problem than a typical outreach pipeline: **trust**. Every claim a research agent makes gets actively attacked by a second agent before it's allowed anywhere near a human prospect.
+ProofFirst is built around sequential specialist agents, a custom conditional router, and a guarded real-world action, aimed at a fundamentally different problem than a typical outreach pipeline: **trust**. Every claim a research agent makes gets actively attacked by a second agent before it's allowed anywhere near a human prospect.
 
 This is not a design doc. It's a running system: 76 tests pass on repeat, the server boots, and every number in this README came out of actually executing the code — see the shell transcript in this conversation for proof.
 
 ---
 
-## 0. Why Syndicate exists
+## 0. Why ProofFirst exists
 
 Most AI SDR pipelines have exactly one moment of "intelligence": a single research pass, trusted implicitly, that feeds straight into an outbound action. If that research is wrong, the system finds out the same way a human would — after the damage is done, on the call.
 
-Syndicate inserts an adversarial checkpoint *before* any prospect is touched. A dedicated Skeptic agent is architecturally incapable of agreeing by default — it has to independently re-derive or contradict every claim. Nothing reaches outreach without surviving that.
+ProofFirst inserts an adversarial checkpoint *before* any prospect is touched. A dedicated Skeptic agent is architecturally incapable of agreeing by default — it has to independently re-derive or contradict every claim. Nothing reaches outreach without surviving that.
 
 ---
 
 ## 1. What was kept, what was rebuilt
 
-| Original pattern | Status in Syndicate |
+| Original pattern | Status in ProofFirst |
 |---|---|
 | Lead discovery (Maps + clustering) | Reimplemented as a labelled fixture module (`data/leads.py`) standing in for live discovery calls. Swap-in point clearly marked for production Maps integration. |
 | Single-pass, untrusted research | **Kept as single-pass and untrusted, on purpose.** Reimplemented independently in `agents/research_agent.py` — the entire premise depends on this stage staying naive so the next stage has something real to attack. |
-| No post-research verification | **Built from scratch.** This is Syndicate's reason for existing: `agents/skeptic_agent.py` + `agents/evidence_synthesis_agent.py`. |
+| No post-research verification | **Built from scratch.** This is ProofFirst's reason for existing: `agents/skeptic_agent.py` + `agents/evidence_synthesis_agent.py`. |
 | Binary router on call outcome | Reimplemented independently as a **three-way** router (`agents/decision_router.py`) branching on *pre-contact evidence confidence*, not what happened after a call was already placed. |
 | Duplicate-call guard | Generalized into `storage.already_actioned()` + a whitelist-gated callback in `agents/action_executor.py` — covers any action type, not just phone calls. |
 | Hardcoded outbound phone call | Replaced with a real, local, inspectable file-write "proof of work" action — see the honesty notes in §6 on exactly what this does and doesn't prove. |
 | Outreach agents | Rebuilt as `agents/outreach_agent.py`, which is *structurally* incapable of accepting raw research — it only accepts a completed dossier plus a confirmed `SUCCESS` action. |
 | BigQuery storage | Plain SQLite (`storage.py`) — zero external setup, identical conceptual role. |
-| No evaluation | `evaluation.py` computes live baseline-vs-Syndicate metrics, not hardcoded numbers. |
+| No evaluation | `evaluation.py` computes live baseline-vs-ProofFirst metrics, not hardcoded numbers. |
 
 ---
 
@@ -84,7 +85,7 @@ Nine distinct agents. One non-negotiable rule threaded through all of them: **a 
 
 ---
 
-## 3. The learning loop — Syndicate gets sharper with every miss
+## 3. The learning loop — ProofFirst gets sharper with every miss
 
 Everything above is a deterministic, thoroughly tested pipeline — but static. Nothing in it improved on its own. The learning loop closes that gap without touching a single guardrail above it.
 
@@ -102,16 +103,16 @@ Everything above is a deterministic, thoroughly tested pipeline — but static. 
 
 ```json
 [
-  {"pass": 1, "active_patterns_count": 0, "syndicate": {"human_review_rate": 0.25}},
-  {"pass": 2, "active_patterns_count": 1, "syndicate": {"human_review_rate": 0.4}},
-  {"pass": 3, "active_patterns_count": 1, "syndicate": {"human_review_rate": 0.4}}
+  {"pass": 1, "active_patterns_count": 0, "prooffirst": {"human_review_rate": 0.25}},
+  {"pass": 2, "active_patterns_count": 1, "prooffirst": {"human_review_rate": 0.4}},
+  {"pass": 3, "active_patterns_count": 1, "prooffirst": {"human_review_rate": 0.4}}
 ]
 ```
 
 The system got *more calibrated*, not noisier — and the shift traces back to exactly one auditable, human-inspectable pattern, not a black box.
 
 **New endpoints (all additive):**
-- `POST /api/leads/{id}/feedback` — tell Syndicate it was wrong
+- `POST /api/leads/{id}/feedback` — tell ProofFirst it was wrong
 - `GET /api/learned-patterns` — every pattern, live or still-candidate, with rationale and source leads
 - `GET /api/leads/{id}/reflections` — the full self-reflection trail for a lead
 
@@ -122,13 +123,13 @@ The system got *more calibrated*, not noisier — and the shift traces back to e
 ## 4. Run it
 
 ```bash
-cd syndicate
+cd prooffirst
 pip install -r requirements.txt
 
 # CLI demo — no server needed, runs all fixture leads end-to-end:
 python3 -c "
-from syndicate import storage, orchestrator
-from syndicate.data.leads import LEADS
+from proof_first import storage, orchestrator
+from proof_first.data.leads import LEADS
 storage.init_db(reset=True)
 for lead in LEADS:
     r = orchestrator.run_full_pipeline(lead, auto_approve=True)
@@ -138,11 +139,11 @@ for lead in LEADS:
 # Full test suite (the safety-critical guarantees):
 python3 -m pytest tests/ -v
 
-# Baseline vs. Syndicate evaluation — real numbers, not hardcoded:
-python3 -m syndicate.evaluation
+# Baseline vs. ProofFirst evaluation — real numbers, not hardcoded:
+python3 -m proof_first.evaluation
 
 # Interactive dashboard:
-uvicorn syndicate.server:app --reload --port 8090
+uvicorn proof_first.server:app --reload --port 8090
 # then open http://127.0.0.1:8090
 ```
 
@@ -178,11 +179,11 @@ No Maps, ElevenLabs, BigQuery, or Gmail credentials required — those dependenc
 ```json
 {
   "baseline":  {"false_claim_rate": 0.231, "human_review_rate": 0.0,  "action_success_rate": null, "avg_decision_time_s": 0.0008, "n_leads": 20},
-  "syndicate": {"false_claim_rate": 0.0,   "human_review_rate": 0.25, "action_success_rate": 1.0,  "avg_decision_time_s": 0.0109, "n_leads": 20}
+  "prooffirst": {"false_claim_rate": 0.0,   "human_review_rate": 0.25, "action_success_rate": 1.0,  "avg_decision_time_s": 0.0109, "n_leads": 20}
 }
 ```
 
-Interpreted honestly: the baseline asserts at least one independently-falsifiable claim in ~23% of pitches. Syndicate measures 0% — because contradicted claims are structurally incapable of reaching outreach. 25% of leads are now correctly routed to `HUMAN_REVIEW` instead of a forced binary close/act call. The cost is real too: roughly **13x** more wall-clock time per lead. This is still a small, illustrative evaluation (20 hand-written leads), not a statistically powered study — but it's real, reproducible, and the computation scales cleanly to a larger set.
+Interpreted honestly: the baseline asserts at least one independently-falsifiable claim in ~23% of pitches. ProofFirst measures 0% — because contradicted claims are structurally incapable of reaching outreach. 25% of leads are now correctly routed to `HUMAN_REVIEW` instead of a forced binary close/act call. The cost is real too: roughly **13x** more wall-clock time per lead. This is still a small, illustrative evaluation (20 hand-written leads), not a statistically powered study — but it's real, reproducible, and the computation scales cleanly to a larger set.
 
 ---
 
@@ -217,7 +218,7 @@ Interpreted honestly: the baseline asserts at least one independently-falsifiabl
 
 ## 7. What's structurally different from the original pattern
 
-1. **Verification happens before contact, not after.** The original's only check happens after a call is already placed. Syndicate's Skeptic runs first and can prevent contact entirely.
+1. **Verification happens before contact, not after.** The original's only check happens after a call is already placed. ProofFirst's Skeptic runs first and can prevent contact entirely.
 2. **Three-way routing on evidence confidence, not two-way routing on call outcome.** `HUMAN_REVIEW` has no equivalent in the original.
 3. **The first autonomous action is a value-first artifact, not an outbound pitch.** Outreach only fires after that artifact is independently confirmed to exist.
 4. **A structural, tested guarantee** that a contradicted claim can never reach outreach — enforced by function signatures and control flow, not convention.
@@ -226,7 +227,7 @@ Interpreted honestly: the baseline asserts at least one independently-falsifiabl
 
 ## 8. Live Call + Risk-Gated Approval
 
-Places a real outbound phone call to a lead and lets the person on the call ask for changes out loud — governed by the exact same guardrail philosophy as the rest of Syndicate. Small, pre-whitelisted, in-range changes are applied immediately and confirmed verbally. Everything else — high-value changes, contract terms, or anything the Skeptic layer has already flagged as low-confidence — is verbally deferred into the *same* `PENDING_APPROVAL` queue the rest of the app already uses.
+Places a real outbound phone call to a lead and lets the person on the call ask for changes out loud — governed by the exact same guardrail philosophy as the rest of ProofFirst. Small, pre-whitelisted, in-range changes are applied immediately and confirmed verbally. Everything else — high-value changes, contract terms, or anything the Skeptic layer has already flagged as low-confidence — is verbally deferred into the *same* `PENDING_APPROVAL` queue the rest of the app already uses.
 
 **New modules (all unit-testable, no Twilio required):**
 - `agents/live_action_guard.py` — the mid-call risk decision, combining hard thresholds with the lead's live Skeptic confidence. **Low confidence forces human approval even for a small request.**
@@ -259,7 +260,9 @@ Thresholds: ±15% quantity, $500 order-value delta, 7-day follow-up shift, 3-day
 
 <div align="center">
 
-**Syndicate**
+**ProofFirst**
+
+*Built for Syndicate by Maximor*
 
 *Trust is earned by getting attacked first.*
 
