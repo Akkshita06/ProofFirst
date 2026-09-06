@@ -1,0 +1,20 @@
+fastapi
+uvicorn
+pydantic
+pytest
+requests
+httpx
+# Frontend E2E regression tests (tests/test_frontend_ui.py, tests/test_live_call_widget_ui.py) -
+# real browser against a live uvicorn process, needed to catch DOM-level bugs
+# (stacked tables, layout overflow, etc.) that a pure API-level test can't see.
+# Pinned: 1.62.0 has a real Sync-API/asyncio-loop conflict under pytest 9 that
+# breaks these tests with no code change on our side - verified by reproducing
+# it in a clean venv. Run `playwright install chromium` once after installing this.
+playwright==1.56.0
+# Optional - only needed if you set GOOGLE_API_KEY to move off MOCK_MODE:
+# google-generativeai
+python-multipart
+twilio
+openai
+# Optional - only needed if you set NEATLOGS_API_KEY for tracing:
+neatlogs[google-genai]
